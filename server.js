@@ -1,10 +1,10 @@
 // server.js
 
 // Import express to create and configure the HTTP server.
-const express = require('express');
+const express = require("express");
 
 // Import CORS middleware to enable cross-origin requests.
-const cors = require('cors');
+const cors = require("cors");
 
 // Create an Express application.
 const app = express();
@@ -16,20 +16,23 @@ app.use(cors());
 app.use(express.json());
 
 // Load environment variables
-require('dotenv').config();
+require("dotenv").config();
 
 // Import Axios to make HTTP requests
-const axios = require('axios');
+const axios = require("axios");
 
-const jwt = require('jsonwebtoken');
+// Import jsonwebtoken for creating and verifying JWT tokens, used for securing your routes.
+const jwt = require("jsonwebtoken");
 
+// Middleware function to authenticate token in the Authorization header of incoming requests.
 const authenticateToken = (req, res, next) => {
   // Get the token from the Authorization header
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Format: "Bearer TOKEN"
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1]; // Format: "Bearer TOKEN"
 
   if (token == null) return res.sendStatus(401); // No token, unauthorized
 
+  // Verify the token using our secret. If valid, proceed to the next middleware, otherwise return forbidden status.
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) return res.sendStatus(403); // Token is not valid, forbidden
     req.user = user;
@@ -37,41 +40,46 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-app.get('/protected', authenticateToken, (req, res) => {
+// Example protected route that requires a valid JWT to access.
+app.get("/protected", authenticateToken, (req, res) => {
   res.json({ message: "This is a protected route", user: req.user });
 });
 
-
-
-// Mock login route
-app.post('/login', (req, res) => {
-  // Example user credentials (in a norma; app, we'd verify these against a database but that is not required for this task)
+// Route to handle user login.
+app.post("/login", (req, res) => {
+  // Example user credentials (in a normal app, we'd verify these against a database but that is not required for this task)
   const { username, password } = req.body;
 
   // Generate a token
-  const token = jwt.sign({ username }, process.env.JWT_SECRET, { expiresIn: '1h' });
+  const token = jwt.sign({ username }, process.env.JWT_SECRET, {
+    expiresIn: "1h",
+  });
 
   res.json({ token });
 });
 
 // Define a simple route for the home page.
-app.get('/', (req, res) => {
-  res.send('Welcome to the Apple Juice API!');
+app.get("/", (req, res) => {
+  res.send("Welcome to the Apple Juice API!");
 });
 
 // Define the search route to use query parameters for making API requests to the Apple store
-app.get('/search', authenticateToken, async (req, res) => {
+app.get("/search", authenticateToken, async (req, res) => {
   // Extract query parameters
   const { term, media } = req.query;
 
   // Validate the input
   if (!term || !media) {
-    return res.status(400).json({ message: "Please provide both search term and media type." });
+    return res
+      .status(400)
+      .json({ message: "Please provide both search term and media type." });
   }
 
   try {
     // Construct the iTunes Search API URL
-    const apiUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=${media}`;
+    const apiUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(
+      term
+    )}&media=${media}`;
 
     // Use Axios to send a GET request to the iTunes API
     const response = await axios.get(apiUrl);
@@ -80,10 +88,12 @@ app.get('/search', authenticateToken, async (req, res) => {
     res.json(response.data);
   } catch (error) {
     // Handle errors by sending an error response
-    res.status(500).json({ message: "Failed to fetch data from iTunes Search API", error: error.message });
+    res.status(500).json({
+      message: "Failed to fetch data from iTunes Search API",
+      error: error.message,
+    });
   }
 });
-
 
 // Define the port the server will run on.
 const PORT = process.env.PORT || 3001;
